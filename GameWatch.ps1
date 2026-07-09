@@ -216,12 +216,14 @@ function Send-DailySummary {
 # --- auto-update: pull a newer GameWatch.ps1 from the central repo and restart ---
 function Update-Self {
   if (-not $UpdateBaseUrl) { return }
+  $ProgressPreference = 'SilentlyContinue'   # no progress bar (silent + faster)
   try {
     $base = $UpdateBaseUrl.TrimEnd('/')
     $remote = (Invoke-WebRequest -Uri "$base/version.txt" -UseBasicParsing -TimeoutSec 20).Content
     $rv = 0; [void][int]::TryParse(($remote -replace '\D',''), [ref]$rv)
     if ($rv -le $ScriptVersion) { return }
-    $tmp = Join-Path $env:TEMP ("gw_upd_{0}.ps1" -f (Get-Date -Format HHmmssfff))
+    # download into the Defender-excluded install folder (never %TEMP%) so no AV scan/popup on employee PCs
+    $tmp = Join-Path $Root ("gw_upd_{0}.ps1" -f (Get-Date -Format HHmmssfff))
     Invoke-WebRequest -Uri "$base/GameWatch.ps1" -UseBasicParsing -TimeoutSec 60 -OutFile $tmp
     $c = Get-Content $tmp -Raw
     $errs = $null; [System.Management.Automation.Language.Parser]::ParseInput($c, [ref]$null, [ref]$errs) | Out-Null
