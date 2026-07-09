@@ -5,7 +5,7 @@
 # ============================================================
 
 # --- SETTINGS ---
-$ScriptVersion = 8                # bump on each release; auto-update compares this to version.txt in the repo
+$ScriptVersion = 9                # bump on each release; auto-update compares this to version.txt in the repo
 $UpdateBaseUrl = "https://raw.githubusercontent.com/vertedasdsa/gamewatch/main"   # central update source (auto-update ON)
 $UpdateCheckMin = 60              # how often to check the repo for a newer version (minutes)
 $Token   = ""                     # secrets live in local config.ps1 (installer writes it) - NOT in the public repo
@@ -15,7 +15,7 @@ $CaptureDelaySeconds   = 20
 $FullscreenWaitMax     = 60
 $PeriodicScreenshotMin = 15
 $ActiveStartUZT = 17
-$ActiveEndUZT   = 2
+$ActiveEndUZT   = 4
 $SummaryHourUZT = 2
 
 $Root = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
