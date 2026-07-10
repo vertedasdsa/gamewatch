@@ -5,7 +5,7 @@
 # ============================================================
 
 # --- SETTINGS ---
-$ScriptVersion = 11               # bump on each release; auto-update compares this to version.txt in the repo
+$ScriptVersion = 12               # bump on each release; auto-update compares this to version.txt in the repo
 $UpdateBaseUrl = "https://raw.githubusercontent.com/vertedasdsa/gamewatch/main"   # central update source (auto-update ON)
 $UpdateCheckMin = 60              # how often to check the repo for a newer version (minutes)
 $Token   = ""                     # secrets live in local config.ps1 (installer writes it) - NOT in the public repo
@@ -29,6 +29,14 @@ $Data = Join-Path $env:LOCALAPPDATA "GameWatch"
 try { New-Item -ItemType Directory -Force $Data | Out-Null } catch {}
 $LogFile   = Join-Path $Data "sessions.csv"
 $StateFile = Join-Path $Data "state.txt"
+
+# --- single instance per session: prevents duplicate messages / multi-instance update loops ---
+# "Local\" = per-logon-session namespace, so each Windows user still gets exactly one monitor.
+try {
+  $gwCreated = $false
+  $script:GwMutex = New-Object System.Threading.Mutex($true, "Local\GameWatch_Singleton", [ref]$gwCreated)
+  if (-not $gwCreated) { exit }
+} catch {}
 
 # --- message icons (built from unicode codepoints so this script file stays pure ASCII) ---
 $Enc     = New-Object System.Text.UTF8Encoding($false)
@@ -231,6 +239,9 @@ function Send-DailySummary {
 # --- auto-update: pull a newer GameWatch.ps1 from the central repo and restart ---
 function Update-Self {
   if (-not $UpdateBaseUrl) { return }
+  # persistent cooldown: never re-apply an update within 20 min (breaks restart-loops from duplicate/stale installs)
+  $last = Get-State 'lastUpdate'
+  if ($last) { try { if (([DateTime]::UtcNow - ([DateTime]::Parse($last)).ToUniversalTime()).TotalMinutes -lt 20) { return } } catch {} }
   $ProgressPreference = 'SilentlyContinue'   # no progress bar (silent + faster)
   try {
     $base = $UpdateBaseUrl.TrimEnd('/')
@@ -246,11 +257,18 @@ function Update-Self {
       $self = $PSCommandPath; if (-not $self) { $self = $MyInvocation.MyCommand.Definition }
       Copy-Item $tmp $self -Force
       Remove-Item $tmp -ErrorAction SilentlyContinue
-      Send-Text "$I_INFO GameWatch updated to v$rv on $($env:COMPUTERNAME) (was v$ScriptVersion). Restarting."
-      $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'GameWatch.vbs'
-      if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'GameWatch.vbs' }
-      if (Test-Path $vbs) { Start-Process wscript.exe -ArgumentList "`"$vbs`"" }
-      exit
+      # record the attempt so a relaunch (or a duplicate) won't loop, even if the write went to the wrong file
+      Set-State 'lastUpdate' ([DateTime]::UtcNow.ToString('o'))
+      # only restart if the file we actually run from really became the new version (else: no loop)
+      $applied = $false; try { $applied = ((Get-Content $self -Raw) -match ("ScriptVersion\s*=\s*" + $rv + "\b")) } catch {}
+      if ($applied) {
+        Send-Text "$I_INFO GameWatch updated to v$rv on $($env:COMPUTERNAME) (was v$ScriptVersion). Restarting."
+        $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'GameWatch.vbs'
+        if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'GameWatch.vbs' }
+        if (Test-Path $vbs) { Start-Process wscript.exe -ArgumentList "`"$vbs`"" }
+        exit
+      }
+      return
     }
     Remove-Item $tmp -ErrorAction SilentlyContinue
   } catch {}
