@@ -5,7 +5,7 @@
 # ============================================================
 
 # --- SETTINGS ---
-$ScriptVersion = 10               # bump on each release; auto-update compares this to version.txt in the repo
+$ScriptVersion = 11               # bump on each release; auto-update compares this to version.txt in the repo
 $UpdateBaseUrl = "https://raw.githubusercontent.com/vertedasdsa/gamewatch/main"   # central update source (auto-update ON)
 $UpdateCheckMin = 60              # how often to check the repo for a newer version (minutes)
 $Token   = ""                     # secrets live in local config.ps1 (installer writes it) - NOT in the public repo
@@ -182,7 +182,21 @@ function Capture-Screen {
   }
   $bmp.Save($p, [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose(); return $p
 }
+function Test-BlankShot($path) {
+  # true if the capture is essentially uniform (monitor off / session locked -> transparent or single-colour frame)
+  try {
+    $img = [System.Drawing.Bitmap]::FromFile($path)
+    $w = $img.Width; $h = $img.Height; $seen = @{}
+    foreach ($fx in 0.15,0.4,0.6,0.85) { foreach ($fy in 0.15,0.4,0.6,0.85) {
+      $px = $img.GetPixel([int]($w*$fx), [int]($h*$fy)); $seen["$($px.A),$($px.R),$($px.G),$($px.B)"] = 1
+    } }
+    $img.Dispose()
+    return ($seen.Keys.Count -le 1)
+  } catch { return $false }
+}
 function Send-Photo($photoPath, $caption) {
+  # blank shot (monitor off / session locked) -> send text instead of a white/empty image
+  if (Test-BlankShot $photoPath) { Send-Text $caption; return }
   try {
     $cf = Join-Path $env:TEMP ("gw_c_{0}.txt" -f (Get-Date -Format HHmmssfff))
     [System.IO.File]::WriteAllText($cf, [string]$caption, $Enc)
