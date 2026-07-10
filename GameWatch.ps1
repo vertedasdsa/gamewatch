@@ -5,7 +5,7 @@
 # ============================================================
 
 # --- SETTINGS ---
-$ScriptVersion = 9                # bump on each release; auto-update compares this to version.txt in the repo
+$ScriptVersion = 10               # bump on each release; auto-update compares this to version.txt in the repo
 $UpdateBaseUrl = "https://raw.githubusercontent.com/vertedasdsa/gamewatch/main"   # central update source (auto-update ON)
 $UpdateCheckMin = 60              # how often to check the repo for a newer version (minutes)
 $Token   = ""                     # secrets live in local config.ps1 (installer writes it) - NOT in the public repo
@@ -14,6 +14,7 @@ $PollSeconds           = 4
 $CaptureDelaySeconds   = 20
 $FullscreenWaitMax     = 60
 $PeriodicScreenshotMin = 15
+$Active24x7     = $true           # $true = monitor 24/7 (no time limit). Set $false to use the window below.
 $ActiveStartUZT = 17
 $ActiveEndUZT   = 4
 $SummaryHourUZT = 2
@@ -105,7 +106,7 @@ public class Native {
 "@
 
 function Get-UZT { [DateTime]::UtcNow.AddHours(5) }
-function Test-ActiveWindow { $h = (Get-UZT).Hour; return ($h -ge $ActiveStartUZT) -or ($h -lt $ActiveEndUZT) }
+function Test-ActiveWindow { if ($Active24x7) { return $true } $h = (Get-UZT).Hour; return ($h -ge $ActiveStartUZT) -or ($h -lt $ActiveEndUZT) }
 function Get-Who { try { (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).UserName } catch { "$env:COMPUTERNAME\$env:USERNAME" } }
 function Get-ForegroundProc {
   $h = [Native]::GetForegroundWindow(); $procId = 0
