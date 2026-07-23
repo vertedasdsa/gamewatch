@@ -5,7 +5,7 @@
 # ============================================================
 
 # --- SETTINGS ---
-$ScriptVersion = 12               # bump on each release; auto-update compares this to version.txt in the repo
+$ScriptVersion = 13               # bump on each release; auto-update compares this to version.txt in the repo
 $UpdateBaseUrl = "https://raw.githubusercontent.com/vertedasdsa/gamewatch/main"   # central update source (auto-update ON)
 $UpdateCheckMin = 60              # how often to check the repo for a newer version (minutes)
 $Token   = ""                     # secrets live in local config.ps1 (installer writes it) - NOT in the public repo
@@ -114,6 +114,7 @@ public class Native {
 "@
 
 function Get-UZT { [DateTime]::UtcNow.AddHours(5) }
+function Get-Stamp { (Get-UZT).ToString('yyyy-MM-dd HH:mm') }   # date + time in UZT for every alert/report
 function Test-ActiveWindow { if ($Active24x7) { return $true } $h = (Get-UZT).Hour; return ($h -ge $ActiveStartUZT) -or ($h -lt $ActiveEndUZT) }
 function Get-Who { try { (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).UserName } catch { "$env:COMPUTERNAME\$env:USERNAME" } }
 function Get-ForegroundProc {
@@ -230,10 +231,11 @@ function Set-State($key, $val) { $lines = @(); if (Test-Path $StateFile) { $line
 function Send-DailySummary {
   $recent = @()
   if (Test-Path $LogFile) { $cut = (Get-Date).AddHours(-24); $recent = Import-Csv $LogFile | Where-Object { try { [datetime]$_.end_iso -ge $cut } catch { $false } } }
-  if (-not $recent -or @($recent).Count -eq 0) { Send-Text "$I_SUM Daily summary on $($env:COMPUTERNAME): no games." ; return }
+  $day = (Get-UZT).ToString('yyyy-MM-dd')
+  if (-not $recent -or @($recent).Count -eq 0) { Send-Text "$I_SUM Daily summary $day on $($env:COMPUTERNAME): no games." ; return }
   $lines = $recent | Group-Object app | ForEach-Object { "  {0}: {1} min ({2} sessions)" -f $_.Name, (($_.Group | Measure-Object -Property duration_min -Sum).Sum), $_.Count }
   $total = ($recent | Measure-Object -Property duration_min -Sum).Sum
-  Send-Text ("$I_SUM DAILY SUMMARY on {0}`nTotal: {1}h {2}m`n{3}" -f $env:COMPUTERNAME, [int]($total/60), [int]($total%60), ($lines -join "`n"))
+  Send-Text ("$I_SUM DAILY SUMMARY {0} on {1}`nTotal: {2}h {3}m`n{4}" -f $day, $env:COMPUTERNAME, [int]($total/60), [int]($total%60), ($lines -join "`n"))
 }
 
 # --- auto-update: pull a newer GameWatch.ps1 from the central repo and restart ---
@@ -262,7 +264,7 @@ function Update-Self {
       # only restart if the file we actually run from really became the new version (else: no loop)
       $applied = $false; try { $applied = ((Get-Content $self -Raw) -match ("ScriptVersion\s*=\s*" + $rv + "\b")) } catch {}
       if ($applied) {
-        Send-Text "$I_INFO GameWatch updated to v$rv on $($env:COMPUTERNAME) (was v$ScriptVersion). Restarting."
+        # silent update: no on/off status message (user wants only game launch / close / summary)
         $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'GameWatch.vbs'
         if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'GameWatch.vbs' }
         if (Test-Path $vbs) { Start-Process wscript.exe -ArgumentList "`"$vbs`"" }
@@ -277,12 +279,8 @@ function Update-Self {
 # check for a newer version at startup (before doing anything else)
 Update-Self
 
-# started / opened on a device -> send info AND a screenshot of all monitors (any time, not gated by watch window)
-try {
-  $startShot = Capture-Screen
-  Send-Photo $startShot "$I_INFO GameWatch started on $($env:COMPUTERNAME)`nUser: $(Get-Who)`nClock now: $((Get-UZT).ToString('HH:mm')) UZT (check it matches real Uzbekistan time)"
-  Remove-Item $startShot -ErrorAction SilentlyContinue
-} catch {}
+# startup is SILENT now (user request): no "GameWatch started" message and no boot screenshot.
+# Only game launch / close / periodic-shot / daily-summary reach Telegram from here on.
 
 $inGame = $false; $gStart = $null; $gApp = $null; $gWho = $null; $lastShot = $null
 $lastUpdCheck = Get-Date
@@ -291,7 +289,7 @@ while ($true) {
   $active = Test-ActiveWindow
   if (-not $active -and $inGame) {
     $end = Get-Date; $dur = [int]($end - $gStart).TotalMinutes
-    Send-Text "$I_STOP GAME CLOSED (watch window ended) on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nPlayed: $dur min"
+    Send-Text "$I_STOP GAME CLOSED (watch window ended) on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nPlayed: $dur min`nTime: $(Get-Stamp) UZT"
     Log-Session $gWho $gApp $gStart $end
     $inGame = $false
   }
@@ -299,7 +297,7 @@ while ($true) {
     $r = Test-Gaming
     if ($r.on -and -not $inGame) {
       $inGame = $true; $gStart = Get-Date; $gApp = $r.name; $gWho = Get-Who
-      Send-Text "$I_GAME GAME LAUNCH on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nTime: $($uzt.ToString('HH:mm')) UZT"
+      Send-Text "$I_GAME GAME LAUNCH on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nTime: $($uzt.ToString('yyyy-MM-dd HH:mm')) UZT"
       # wait for the game to be on-screen, but stop if it closes early
       $w = 0; while ($w -lt $FullscreenWaitMax -and -not (Test-OnScreen)) { if (-not (Test-Gaming).on) { break }; Start-Sleep 3; $w += 3 }
       # let it finish loading, but bail out the moment the game closes (no stale/white shot)
@@ -307,7 +305,7 @@ while ($true) {
       if ((Test-Gaming).on) {
         $shot = Capture-Screen
         if ((Test-Gaming).on) {
-          Send-Photo $shot "$I_SHOT GAME (fullscreen) on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nTime: $((Get-UZT).ToString('HH:mm')) UZT"
+          Send-Photo $shot "$I_SHOT GAME (fullscreen) on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nTime: $(Get-Stamp) UZT"
         }
         Remove-Item $shot -ErrorAction SilentlyContinue
       }
@@ -317,14 +315,14 @@ while ($true) {
       if (((Get-Date) - $lastShot).TotalMinutes -ge $PeriodicScreenshotMin) {
         $dur = [int]((Get-Date) - $gStart).TotalMinutes
         $shot = Capture-Screen
-        Send-Photo $shot "$I_LOOP GAME (playing $dur min) on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nTime: $((Get-UZT).ToString('HH:mm')) UZT"
+        Send-Photo $shot "$I_LOOP GAME (playing $dur min) on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nTime: $(Get-Stamp) UZT"
         Remove-Item $shot -ErrorAction SilentlyContinue
         $lastShot = Get-Date
       }
     }
     elseif (-not $r.on -and $inGame) {
       $end = Get-Date; $dur = [int]($end - $gStart).TotalMinutes
-      Send-Text "$I_STOP GAME CLOSED on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nPlayed: $dur min"
+      Send-Text "$I_STOP GAME CLOSED on $($env:COMPUTERNAME)`nUser: $gWho`nApp: $gApp`nPlayed: $dur min`nTime: $(Get-Stamp) UZT"
       Log-Session $gWho $gApp $gStart $end
       $inGame = $false
     }
