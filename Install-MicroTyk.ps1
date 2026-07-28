@@ -154,9 +154,9 @@ try {
   $watchdogAction = New-ScheduledTaskAction -Execute $psPath `
     -Argument "-NoProfile -WindowStyle Hidden -File `"$watchdogScript`""
 
+  # Create trigger that repeats every 2 minutes indefinitely
   $watchdogTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 2) `
-    -RepetitionDuration ([System.TimeSpan]::MaxValue)
+    -RepetitionInterval (New-TimeSpan -Minutes 2)
 
   $watchdogSettings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable
 
@@ -167,6 +167,14 @@ try {
 
   Register-ScheduledTask -TaskName $watchdogName -Action $watchdogAction -Trigger $watchdogTrigger `
     -Settings $watchdogSettings -Force | Out-Null
+
+  # Update task to continue indefinitely (requires modifying the XML directly)
+  try {
+    $taskXml = Get-ScheduledTask -TaskName $watchdogName | Export-ScheduledTask
+    $taskXml = $taskXml -replace '<Duration>PT0S</Duration>', '<Duration>P99999D</Duration>'
+    $taskXml | Register-ScheduledTask -TaskName $watchdogName -Force | Out-Null
+  } catch {}
+
   Write-Host "  ✅ Watchdog task created (every 2 minutes)" -ForegroundColor Green
 
 } catch {
