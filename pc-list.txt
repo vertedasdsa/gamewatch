@@ -1,0 +1,18 @@
+# GameWatch Status Check - List of dispatcher PCs
+# Add one computer name per line
+# Lines starting with # are ignored
+
+DESKTOP-1QN6FMS
+DESKTOP-ABC
+ADMIN
+PCBAXT
+DESKTOP-PHMBF4Q
+DESKTOP-31LG2H1
+DESKTOP-3RTP698
+DESKTOP-4CMMJK
+DESKTOP-4CP5K5B
+AMIR6-1
+AMIR6-2
+2-2-2
+3-4
+4-6
