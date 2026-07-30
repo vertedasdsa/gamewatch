@@ -1,5 +1,5 @@
 # ============================================================
-#  MicroTyk v13 (portable) - game monitoring on own PC
+#  GameWatch v13 (portable) - game monitoring on own PC
 #  Formerly known as GameWatch. Paths are relative to this script's folder ($PSScriptRoot).
 #  Steam libraries are auto-detected on each machine.
 # ============================================================
@@ -25,7 +25,7 @@ $cfg = Join-Path $Root "config.ps1"
 if (Test-Path $cfg) { try { . $cfg } catch {} }
 $FFmpeg = Join-Path $Root "ffmpeg.exe"
 # per-user data (each Windows user keeps own log/state -> no conflicts between sessions)
-$Data = Join-Path $env:LOCALAPPDATA "MicroTyk"
+$Data = Join-Path $env:LOCALAPPDATA "GameWatch"
 try { New-Item -ItemType Directory -Force $Data | Out-Null } catch {}
 $LogFile   = Join-Path $Data "sessions.csv"
 $StateFile = Join-Path $Data "state.txt"
@@ -34,7 +34,7 @@ $StateFile = Join-Path $Data "state.txt"
 # "Local\" = per-logon-session namespace, so each Windows user still gets exactly one monitor.
 try {
   $mtCreated = $false
-  $script:MtMutex = New-Object System.Threading.Mutex($true, "Local\MicroTyk_Singleton", [ref]$mtCreated)
+  $script:MtMutex = New-Object System.Threading.Mutex($true, "Local\GameWatch_Singleton", [ref]$mtCreated)
   if (-not $mtCreated) { exit }
 } catch {}
 
@@ -265,8 +265,8 @@ function Update-Self {
       $applied = $false; try { $applied = ((Get-Content $self -Raw) -match ("ScriptVersion\s*=\s*" + $rv + "\b")) } catch {}
       if ($applied) {
         # silent update: no on/off status message (user wants only game launch / close / summary)
-        $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'MicroTyk.vbs'
-        if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'MicroTyk.vbs' }
+        $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'GameWatch.vbs'
+        if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'GameWatch.vbs' }
         if (Test-Path $vbs) { Start-Process wscript.exe -ArgumentList "`"$vbs`"" }
         exit
       }

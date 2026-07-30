@@ -1,5 +1,5 @@
 # ============================================================
-#  Deploy MicroTyk to All Dispatcher PCs
+#  Deploy GameWatch to All Dispatcher PCs
 #  Prerequisites:
 #  - Network access to all PCs (via \\PC\C$)
 #  - OR: RDP/SSH access to each PC
@@ -14,7 +14,7 @@ param(
   [switch]$TestOnly = $false
 )
 
-Write-Host "=== MicroTyk Mass Deployment ===" -ForegroundColor Cyan
+Write-Host "=== GameWatch Mass Deployment ===" -ForegroundColor Cyan
 Write-Host ""
 
 # If no computer names provided, discover from Active Directory
@@ -46,8 +46,8 @@ if ($TestOnly) {
 Write-Host ""
 
 # Validate source
-if (-not (Test-Path "$SourcePath\Install-MicroTyk.ps1")) {
-  Write-Host "ERROR: Install-MicroTyk.ps1 not found at $SourcePath" -ForegroundColor Red
+if (-not (Test-Path "$SourcePath\Install-GameWatch.ps1")) {
+  Write-Host "ERROR: Install-GameWatch.ps1 not found at $SourcePath" -ForegroundColor Red
   exit 1
 }
 
@@ -69,7 +69,7 @@ foreach ($pc in $ComputerNames) {
   }
 
   # Map network path
-  $targetPath = "\\$pc\C$\MicroTyk-Install"
+  $targetPath = "\\$pc\C$\GameWatch-Install"
 
   if ($TestOnly) {
     Write-Host "✅ Reachable (test mode)" -ForegroundColor Yellow
@@ -111,7 +111,7 @@ foreach ($pc in $ComputerNames) {
 
     $installScript = @"
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-& "C:\MicroTyk-Install\Install-MicroTyk.ps1" -NoStart
+& "C:\GameWatch-Install\Install-GameWatch.ps1" -NoStart
 "@
 
     Invoke-Command -Session $session -ScriptBlock ([scriptblock]::Create($installScript)) -ErrorAction Stop | Out-Null
@@ -136,10 +136,10 @@ if ($TestOnly) {
   Write-Host "To deploy for real, run:" -ForegroundColor Cyan
   Write-Host "  .\Deploy-To-All-PCs.ps1 -ComputerNames @($($ComputerNames | ForEach-Object { "`'$_`'" } | Join-String -Separator ', '))" -ForegroundColor Gray
 } else {
-  Write-Host "Deployment complete. MicroTyk will start on next login." -ForegroundColor Green
+  Write-Host "Deployment complete. GameWatch will start on next login." -ForegroundColor Green
   Write-Host ""
   Write-Host "If any failed, manually deploy to those PCs:" -ForegroundColor Yellow
   Write-Host "  1. RDP to PC" -ForegroundColor Gray
   Write-Host "  2. powershell -NoProfile -ExecutionPolicy Bypass" -ForegroundColor Gray
-  Write-Host "  3. & C:\MicroTyk-Install\Install-MicroTyk.ps1" -ForegroundColor Gray
+  Write-Host "  3. & C:\GameWatch-Install\Install-GameWatch.ps1" -ForegroundColor Gray
 }

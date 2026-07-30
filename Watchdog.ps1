@@ -1,11 +1,11 @@
 # ============================================================
-#  Watchdog for MicroTyk (formerly GameWatch)
+#  Watchdog for GameWatch (formerly GameWatch)
 #  Auto-restart + Telegram alert when main script is stopped
 #  Runs every 2 minutes via scheduled task
 # ============================================================
 
 # --- SETTINGS ---
-$ScriptName = "MicroTyk.ps1"              # Primary script (renamed from GameWatch.ps1)
+$ScriptName = "GameWatch.ps1"              # Primary script (renamed from GameWatch.ps1)
 $ScriptNameLegacy = "GameWatch.ps1"       # Legacy alias (if running old version)
 $MainScript = Join-Path $PSScriptRoot $ScriptName
 $RestartDelaySeconds = 30        # wait 30 sec before restarting (allow time for graceful shutdown)
@@ -73,14 +73,14 @@ if (-not (Test-ProcessRunning $ScriptName $ScriptNameLegacy)) {
     $sendAlert = ($timeSinceAlert.TotalMinutes -ge $AlertCooldownMinutes)
 
     if ($Token -and $ChatId -and $sendAlert) {
-      Send-Text "$I_ALERT MicroTyk was STOPPED on $($env:COMPUTERNAME) (user $env:USERNAME)`nTime: $(Get-Stamp) UZT`nRestarting..."
+      Send-Text "$I_ALERT GameWatch was STOPPED on $($env:COMPUTERNAME) (user $env:USERNAME)`nTime: $(Get-Stamp) UZT`nRestarting..."
       Set-LastAlertTime
     }
 
     # Start the main script via VBS (hide window)
-    $vbs = Join-Path $Root "MicroTyk.vbs"
-    if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'MicroTyk.vbs' }
-    if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'MicroTyk.vbs' }
+    $vbs = Join-Path $Root "GameWatch.vbs"
+    if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'GameWatch.vbs' }
+    if (-not (Test-Path $vbs)) { $vbs = Join-Path ([Environment]::GetFolderPath('Startup')) 'GameWatch.vbs' }
 
     if (Test-Path $vbs) {
       try { Start-Process wscript.exe -ArgumentList "`"$vbs`"" -ErrorAction SilentlyContinue } catch {}

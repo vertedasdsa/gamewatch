@@ -1,6 +1,6 @@
 # ============================================================
-#  MicroTyk Automatic Installer
-#  Installs MicroTyk + Watchdog + Creates scheduled tasks
+#  GameWatch Automatic Installer
+#  Installs GameWatch + Watchdog + Creates scheduled tasks
 #  Requires: Admin rights
 # ============================================================
 
@@ -18,13 +18,13 @@ if (-not $isAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrato
   exit 1
 }
 
-Write-Host "=== MicroTyk Installation ===" -ForegroundColor Cyan
+Write-Host "=== GameWatch Installation ===" -ForegroundColor Cyan
 Write-Host ""
 
 # Paths
 $SourceDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$InstallDir = "C:\MicroTyk"
-$DataDir = "$env:LOCALAPPDATA\MicroTyk"
+$InstallDir = "C:\GameWatch"
+$DataDir = "$env:LOCALAPPDATA\GameWatch"
 
 Write-Host "Source:      $SourceDir" -ForegroundColor Gray
 Write-Host "Install to:  $InstallDir" -ForegroundColor Gray
@@ -47,7 +47,7 @@ try {
 
 # Copy files
 Write-Host "[2/7] Copying files..." -ForegroundColor Yellow
-$files = @("MicroTyk.ps1", "GameWatch.ps1", "Watchdog.ps1", "MicroTyk.vbs")
+$files = @("GameWatch.ps1", "GameWatch.ps1", "Watchdog.ps1", "GameWatch.vbs")
 foreach ($file in $files) {
   $src = Join-Path $SourceDir $file
   if (Test-Path $src) {
@@ -87,7 +87,7 @@ if (-not $Token -or $Token -like "*YOUR_*" -or -not $ChatId -or $ChatId -like "*
 $configPath = Join-Path $InstallDir "config.ps1"
 if ($Token -and $ChatId -and -not ($Token -like "*YOUR_*") -and -not ($ChatId -like "*YOUR_*")) {
   @"
-# MicroTyk Configuration
+# GameWatch Configuration
 `$Token = "$Token"
 `$ChatId = "$ChatId"
 # Optional: `$ExtraGameProcesses = @("Game.exe")
@@ -113,8 +113,8 @@ try {
 Write-Host "[5/7] Creating startup link..." -ForegroundColor Yellow
 try {
   $startupDir = [Environment]::GetFolderPath('CommonStartup')
-  $vbsPath = Join-Path $InstallDir "MicroTyk.vbs"
-  $linkPath = Join-Path $startupDir "MicroTyk.vbs"
+  $vbsPath = Join-Path $InstallDir "GameWatch.vbs"
+  $linkPath = Join-Path $startupDir "GameWatch.vbs"
 
   if ((Test-Path $vbsPath)) {
     Copy-Item $vbsPath $linkPath -Force
@@ -128,10 +128,10 @@ try {
 Write-Host "[6/7] Creating scheduled tasks..." -ForegroundColor Yellow
 
 try {
-  # MicroTyk startup task
-  $taskName = "MicroTyk"
+  # GameWatch startup task
+  $taskName = "GameWatch"
   $psPath = Get-Command powershell.exe | Select-Object -ExpandProperty Source
-  $scriptPath = Join-Path $InstallDir "MicroTyk.ps1"
+  $scriptPath = Join-Path $InstallDir "GameWatch.ps1"
 
   $action = New-ScheduledTaskAction -Execute $psPath `
     -Argument "-NoProfile -WindowStyle Hidden -File `"$scriptPath`""
@@ -145,10 +145,10 @@ try {
   }
 
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
-  Write-Host "  ✅ MicroTyk task created (runs at login)" -ForegroundColor Green
+  Write-Host "  ✅ GameWatch task created (runs at login)" -ForegroundColor Green
 
   # Watchdog task
-  $watchdogName = "MicroTyk_Watchdog"
+  $watchdogName = "GameWatch_Watchdog"
   $watchdogScript = Join-Path $InstallDir "Watchdog.ps1"
 
   $watchdogAction = New-ScheduledTaskAction -Execute $psPath `
@@ -181,20 +181,20 @@ try {
   Write-Host "  ❌ Task creation failed: $_" -ForegroundColor Red
 }
 
-# Start MicroTyk
-Write-Host "[7/7] Starting MicroTyk..." -ForegroundColor Yellow
+# Start GameWatch
+Write-Host "[7/7] Starting GameWatch..." -ForegroundColor Yellow
 
 if ($NoStart) {
   Write-Host "  ⏭️  Skipping start (use -NoStart flag)" -ForegroundColor Yellow
 } else {
   try {
-    $scriptPath = Join-Path $InstallDir "MicroTyk.ps1"
+    $scriptPath = Join-Path $InstallDir "GameWatch.ps1"
     if (Test-Path $scriptPath) {
       Start-Process powershell.exe -ArgumentList "-NoProfile -WindowStyle Hidden -File `"$scriptPath`"" -NoNewWindow
-      Write-Host "  ✅ MicroTyk started" -ForegroundColor Green
+      Write-Host "  ✅ GameWatch started" -ForegroundColor Green
     }
   } catch {
-    Write-Host "  ⚠️  Could not start MicroTyk: $_" -ForegroundColor Yellow
+    Write-Host "  ⚠️  Could not start GameWatch: $_" -ForegroundColor Yellow
   }
 }
 
@@ -204,7 +204,7 @@ Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "  1. Check Telegram for test message (if Token/ChatId configured)" -ForegroundColor Gray
 Write-Host "  2. Launch a game → Screenshot should arrive in ~20 seconds" -ForegroundColor Gray
-Write-Host "  3. MicroTyk will auto-start at next login" -ForegroundColor Gray
+Write-Host "  3. GameWatch will auto-start at next login" -ForegroundColor Gray
 Write-Host "  4. Watchdog will auto-restart if process crashes" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Configuration: $configPath" -ForegroundColor Cyan
@@ -212,4 +212,4 @@ Write-Host "Data folder:   $DataDir" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "If no Telegram notifications:" -ForegroundColor Yellow
 Write-Host "  Edit: $configPath" -ForegroundColor Gray
-Write-Host "  Add Token and ChatId, then restart MicroTyk" -ForegroundColor Gray
+Write-Host "  Add Token and ChatId, then restart GameWatch" -ForegroundColor Gray
